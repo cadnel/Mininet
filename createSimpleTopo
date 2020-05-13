@@ -1,0 +1,65 @@
+#!/usr/bin/python
+
+from mininet.net import Mininet
+from mininet.node import Controller, RemoteController, OVSController
+from mininet.node import CPULimitedHost, Host, Node
+from mininet.node import OVSKernelSwitch, UserSwitch
+from mininet.node import IVSSwitch
+from mininet.cli import CLI
+from mininet.log import setLogLevel, info
+from mininet.link import TCLink, Intf
+from subprocess import call
+
+def myNetwork():
+
+    net = Mininet( topo=None,build=False,ipBase='10.0.0.0/8')
+    REMOTE_CONTROLLER='192.168.161.139'
+
+    print "*** Adding remote controller "
+    c0=net.addController(name='c0', controller=RemoteController, ip=REMOTE_CONTROLLER, protocol='tcp', port=6633)
+
+    print "*** Add switches"
+    s2 = net.addSwitch('s2')
+    s3 = net.addSwitch('s3')
+
+    print "*** Add hosts"
+    webserver = net.addHost('webserver', ip='10.0.0.1', mac='00:00:00:00:00:01', cls=Host)
+    trafgen1 = net.addHost('trafgen1', ip='10.0.0.2', mac='00:00:00:00:00:02', cls=Host)
+    trafgen2 = net.addHost('trafgen2', ip='10.0.0.3', mac='00:00:00:00:00:03', cls=Host)
+    webcli1 = net.addHost('webcli1', ip='10.0.0.4', mac='00:00:00:00:00:04', cls=Host)
+    hacker = net.addHost('hacker', ip='10.0.0.5', mac='00:00:00:00:00:05', cls=Host)
+    webcli2 = net.addHost('webcli2', ip='10.0.0.6', mac='00:00:00:00:00:06', cls=Host)
+
+    print "*** Add links"   
+    net.addLink(webserver, s2)
+    net.addLink(trafgen1, s2)
+    net.addLink(trafgen2, s2)
+    net.addLink(webcli1, s3)
+    net.addLink(hacker, s3)
+    net.addLink(webcli2, s3)
+    net.addLink(s2, s3)
+
+    print "*** Starting network"
+    net.build()
+    net.start()
+
+    print "*** Starting switches"
+    net.get('s3').start([c0])
+    net.get('s2').start([c0])
+
+#   net.pingAll()
+
+    print "*** Launch some daemon on hosts"
+    webserver.cmd('python -m SimpleHTTPServer 80 &')
+    trafgen1.cmd('./trafgen.sh &')
+    trafgen2.cmd('./trafgen.sh &')
+    webcli1.cmd('./webclient.sh &')
+    hacker.cmd('./flood.sh &')   
+    webcli2.cmd('./webclient.sh &')
+
+    CLI(net)
+    net.stop()
+    
+if __name__ == '__main__':
+    setLogLevel( 'info' )
+    myNetwork()

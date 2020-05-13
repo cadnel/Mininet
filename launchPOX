@@ -1,0 +1,3 @@
+#!/bin/bash
+cd pox/
+python pox.py --verbose misc.of_tutorial

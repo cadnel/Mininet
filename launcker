@@ -1,0 +1,37 @@
+#!/bin/bash
+
+virsh start mininet
+virsh start pox
+namespace=$(virsh net-list | grep "active" | awk '{print $1;}')
+
+echo -e "The namespace is "$namespace"\n";
+temp=$(virsh net-dhcp-leases $namespace | wc -l)
+
+echo -e "[+] Please wait a minute, we're launching our VMs \n"
+
+while (( $temp <5 ))
+do 
+temp=$(virsh net-dhcp-leases $namespace | wc -l)
+done
+if (( $temp == 5 ))
+then
+        let "rm=$temp - 3";
+        echo -e "\n The "$rm" Machines are running successfully..!! \n";
+fi
+
+echo -e "Let's get their IP adresses..!!\n";
+sleep 2;
+mininet_IP=$(virsh  net-dhcp-leases $namespace | grep "MININET" | awk '{print $5;}'| cut -d'/' -f1)
+pox_IP=$(virsh  net-dhcp-leases $namespace | grep "POX" | awk '{print $5;}'| cut -d'/' -f1)
+
+echo -e "Mininet IP @ is: "$mininet_IP" \n"
+sleep 1;
+echo -e "POX IP @ is: "$pox_IP" \n"
+sleep 1;
+
+echo -e "SSH on POX..!!"
+xterm -hold -e sshpass -f tito.txt ssh -tt mininet@$pox_IP 'sudo bash launchPOX.sh' &
+sleep 2;
+
+echo -e "SSH on Mininet..!!"
+xterm -hold -e sshpass -f tito.txt ssh -tt mininet@$mininet_IP 'sudo python createTopoNovo.py' &
